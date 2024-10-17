@@ -1,0 +1,10 @@
+<%- include("content/header.ejs") %>
+
+<h1>Feed Back</h1>
+<form action="/send-email" method="POST">
+  <input name="name" type="text" class="feedback-input" placeholder="Name" />
+  <textarea name="message" class="feedback-input" placeholder="Comment"></textarea>
+  <input type="submit" value="SEND" name="send"/>
+</form>
+
+<%- include("content/footer.ejs") %>
