@@ -81,3 +81,134 @@ textarea {
 [type="submit"]:hover {
   background: #3586ff;
 }
+
+
+ul#notesList {
+  list-style-type: none;
+  padding: 0;
+
+}
+
+ul#notesList li {
+  background-color: white;
+  border: 1px solid  #3586ff;
+  border-radius: 5px;
+  padding: cover;
+  margin-top: 10px;
+  justify-content: space-between;
+  display: flex;
+
+}
+
+ul#notesList li deleteButton {
+  display: inline-block;
+  background-color:#3586ff;
+;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 10px;
+  cursor: pointer;
+  margin: 10px;
+
+}
+
+ul#notesList li editButton {
+  display: inline-block;
+  background-color:#3586ff;
+;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 10px;
+  cursor: pointer;
+  margin: 10px;
+
+}
+
+ul#notesList li saveButton {
+  display: inline-block;
+  background-color:#23c82e;
+;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 10px;
+  cursor: pointer;
+  margin: 10px;
+
+}
+
+ul#notesList li editButton:hover {
+  background-color: #23c82e;
+  transition: all 0.7s;
+  
+}
+
+ul#notesList li deleteButton:hover {
+  background-color: #dc3545;
+  transition: all 0.7s;
+  
+}
+
+ul#notesList li input{
+
+  width: 60%;
+  border: none;
+  padding: 0;
+  border-radius: 5px;
+  background-color: white;
+
+}
+
+ul#notesList li p {
+  margin: 10px;
+  padding-top: 10px;
+  color: black;
+}
+
+#inviteContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+#inviteeInput {
+  color: black;
+  font-weight: 400;
+  font-size: 18px;
+  border-radius: 5px;
+  line-height: 22px;
+  background-color: transparent;
+  border: 2px solid #3586ff;
+  transition: all 0.3s;
+  padding: 13px;
+  width: 20%;
+  box-sizing: border-box;
+  outline: 0;
+}
+
+#inviteeInput:focus {
+  border: 2px solid #1e70bf;
+}
+
+#inviteCollaboratorBtn {
+  background: #3586ff;
+  border-radius: 5px;
+  border: 0;
+  cursor: pointer;
+  color: white;
+  font-size: 18px;
+  padding: 13px 20px;
+  transition: all 0.7s;
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+#inviteCollaboratorBtn:hover {
+  background: #1e70bf;
+  transition: all 0.7s;
+}
