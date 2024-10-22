@@ -1,7 +1,9 @@
 import express from "express";
 import nodemailer from "nodemailer";
 import bodyParser from "body-parser";
+import mysql from "mysql2";
 import dotenv from "dotenv";
+
 dotenv.config();
 const app=express();
 const port = 3000;
@@ -49,7 +51,16 @@ app.get("/contact", (req, res) => {
         res.send("Email has been sent successfully!");
     });
 });
-
+/**
+ * 
+ * For SQL
+ */
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'final',  // Replace with your MySQL username
+    password: process.env.SQL_PASS,  // Replace with your MySQL password
+    database: 'note_date'  // Replace with your database name
+});
 
 app.listen(port,()=>{
     console.log(`Server running in ${port}`);
