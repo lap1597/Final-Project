@@ -1,8 +1,7 @@
 <%- include("content/header.ejs") %>
 
-
 <h1>Notes App</h1>
-<form id="noteForm">
+<form id="noteForm" action="/create_event" method="post">
     <div>
         <textarea id="noteInput" name="description" placeholder="Write your note here..." required></textarea>
         <br>
@@ -11,29 +10,26 @@
     </div>
     <div id="calendarInputs" style="display: none;">
         <label for="summary">Event Title:</label>
-        <input type="text" name="summary" id="summary" class="feedback-input"><br>
+        <input type="text" name="summary" id="summary" class="feedback-input" required><br>
 
         <div id="dateInputs">
             <label for="start">Start Date:</label>
-            <input type="date" id="start" name="start" class="feedback-input"><br>
+            <input type="date" id="start" name="start" class="feedback-input" required><br>
 
             <label for="end">End Date:</label>
-            <input type="date" id="end" name="end" class="feedback-input"><br>
+            <input type="date" id="end" name="end" class="feedback-input" required><br>
         </div>
 
         <div id="timeInputs">
             <label for="startTime">Start Time:</label>
-            <input type="time" id="startTime" name="startTime" class="feedback-input"><br>
+            <input type="time" id="startTime" name="startTime" class="feedback-input" required><br>
 
             <label for="endTime">End Time:</label>
-            <input type="time" id="endTime" name="endTime" class="feedback-input"><br>
+            <input type="time" id="endTime" name="endTime" class="feedback-input" required><br>
         </div>
 
-        <label for="end">End Date and Time:</label>
-        <input type="datetime-local" id="end" name="end" class="feedback-input"><br>
-
         <label for="category">Category:</label>
-        <select id="category" name="category" class="feedback-input">
+        <select id="category" name="category" class="feedback-input" required>
             <option value="class">Class</option>
             <option value="study">Study Session</option>
             <option value="meeting">Meeting</option>
@@ -48,41 +44,18 @@
     <button type="submit">Add Note</button>
 </form>
 
-
-
-
-
 <ul id="notesList"></ul>
-
-
 
 <script>
     document.getElementById('publishToCalendar').addEventListener('change', function() {
         var calendarInputs = document.getElementById('calendarInputs');
-        if (this.checked) {
-            calendarInputs.style.display = 'block';
-        } else {
-            calendarInputs.style.display = 'none';
-        }
+        calendarInputs.style.display = this.checked ? 'block' : 'none';
     });
 
     document.getElementById('useAiSuggestion').addEventListener('change', function() {
         var timeInputs = document.getElementById('timeInputs');
-        if (this.checked) {
-            timeInputs.style.display = 'none';
-        } else {
-            timeInputs.style.display = 'block';
-        }
+        timeInputs.style.display = this.checked ? 'none' : 'block';
     });
-
-    document.getElementById('inviteCollaboratorBtn').addEventListener('click', function() {
-        const invitee = document.getElementById('inviteeInput').value;
-        inviteCollaborator(invitee);
-    });
-
-    
 </script>
-
-
 
 <%- include("content/footer.ejs") %>

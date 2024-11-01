@@ -1,0 +1,54 @@
+<%- include("content/header.ejs") %>
+
+<style>
+    .card {
+        margin-bottom: 1rem;
+    }
+    .card-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .card-text {
+        font-size: 1rem;
+        color: black;
+    }
+    .card-header {
+        color: white;
+    }
+    .no-events {
+        text-align: center; /* Center the message */
+        font-size: 1.2rem; /* Slightly larger text for emphasis */
+        margin-top: 2rem; /* Add some space above */
+        color: #555; /* Dimmed color for a softer look */
+    }
+</style>
+
+<h1 class="mb-4">Completed Notes</h1>
+<div class="row">
+    <% if (events && events.length > 0) { %>
+        <% events.forEach(event => { %>
+            <div class="col-md-6">
+                <div class="card" style="background-color: <%= categoryColors[event.category] || '#f8f9fa' %>;">
+                    <div class="card-header">
+                        <%= event.summary %>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title"><%= event.summary %></h5>
+                        <p class="card-text">
+                            <strong>Category:</strong> <%= event.category || 'No Category' %><br>
+                            <strong>Start:</strong> <%= event.start.dateTime || event.start.date %><br>
+                            <strong>End:</strong> <%= event.end.dateTime || event.end.date %><br>
+                            <strong>Description:</strong> <%= event.description.replace("CreatedFromWebpage", "") %>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <% }) %>
+    <% } else { %>
+        <div class="col-12 no-events">
+            <p>No completed notes available.</p>
+        </div>
+    <% } %>
+</div>
+
+<%- include("content/footer.ejs") %>
