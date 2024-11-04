@@ -24,20 +24,20 @@
 </style>
 
 <h1 class="mb-4">Completed Notes</h1>
+<!-- <pre><%= JSON.stringify(events, null, 2) %></pre> Debug output -->
 <div class="row">
     <% if (events && events.length > 0) { %>
         <% events.forEach(event => { %>
             <div class="col-md-6">
-                <div class="card" style="background-color: <%= categoryColors[event.category] || '#f8f9fa' %>;">
-                    <div class="card-header">
+                <div class="card">
+                    <div class="card-header" style="background-color: <%= event.colorId ? CATEGORY_COLORS[event.colorId] || '#007bff' : '#007bff' %>;">
                         <%= event.summary %>
                     </div>
                     <div class="card-body">
                         <h5 class="card-title"><%= event.summary %></h5>
                         <p class="card-text">
-                            <strong>Category:</strong> <%= event.category || 'No Category' %><br>
-                            <strong>Start:</strong> <%= event.start.dateTime || event.start.date %><br>
-                            <strong>End:</strong> <%= event.end.dateTime || event.end.date %><br>
+                            <strong>Start:</strong> <%= formatDateTime(event.start.dateTime || event.start.date)  %><br>
+                            <strong>End:</strong> <%= formatDateTime(event.end.dateTime || event.end.date)  %><br>
                             <strong>Description:</strong> <%= event.description.replace("CreatedFromWebpage", "") %>
                         </p>
                     </div>
@@ -50,5 +50,32 @@
         </div>
     <% } %>
 </div>
-
+<!-- <script>
+   function formatDate(dateTime) {
+    const options = { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+    };
+    const date = new Date(dateTime);
+    return date.toLocaleString('en-US', options).replace(',', ''); // Format to local string and remove the comma
+}
+</script> -->
 <%- include("content/footer.ejs") %>
+<%
+// Server-side function to format the date and time
+function formatDate(dateTime) {
+    const options = { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        hour12: false 
+    };
+    const date = new Date(dateTime);
+    return date.toLocaleString('en-US', options).replace(',', ''); // Format to local string and remove the comma
+} %>

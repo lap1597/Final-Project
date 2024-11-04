@@ -40,22 +40,22 @@ const isAuthenticated = (req, res, next) => {
     }
 };
 
-// Routes
+
 app.get("/", (req, res) => {
-    res.render("index.ejs");
+    res.render("index.ejs", { isAuthenticated: !!req.session.user });
 });
 
 app.get("/about", (req, res) => {
-    res.render("about.ejs");
+    res.render("about.ejs", { isAuthenticated: !!req.session.user });
 });
 
 app.get("/contact", (req, res) => {
-    res.render("contact.ejs");
+    res.render("contact.ejs", { isAuthenticated: !!req.session.user });
+});
+app.get("/note", isAuthenticated, (req, res) => {
+    res.render("note.ejs", { isAuthenticated: !!req.session.user });
 });
 
-app.get("/note", isAuthenticated, (req, res) => {
-    res.render("note.ejs");
-});
 
 app.get("/auth/google", (req, res) => {
     const scopes = [
@@ -157,14 +157,16 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
             summary,
             description,
             start: {
-                dateTime: new Date(`${start}T${startTime}`).toISOString(),
+              //  dateTime: new Date(`${start}T${startTime}`).toISOString(),
+              dateTime: formatDateTime(start, startTime),
                 timeZone: 'America/Los_Angeles', // Adjust time zone as needed
             },
             end: {
-                dateTime: new Date(`${end}T${endTime}`).toISOString(),
+               // dateTime: new Date(`${end}T${endTime}`).toISOString(),
+               dateTime: formatDateTime(end, endTime), // Use formatted end time
                 timeZone: 'America/Los_Angeles',
             },
-            category,
+            colorId: CATEGORY_COLORS[category]
         };
 
         try {
@@ -194,9 +196,10 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
     }
 });
 
+
 // Fetch completed notes route
 app.get("/completed_notes", isAuthenticated, async (req, res) => {
-    const identifier = "CreatedFromWebpage"; // The identifier to filter events
+ //   const identifier = "CreatedFromWebpage"; // The identifier to filter events
     try {
         const accessToken = req.session.tokenData.access_token;
         const oAuth2Client = new google.auth.OAuth2();
@@ -204,31 +207,67 @@ app.get("/completed_notes", isAuthenticated, async (req, res) => {
 
         const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
         const now = new Date().toISOString();
+        const oneWeekFromNow = new Date(); // Create a new date object
+        oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 2); // Add 7 days
+        const timeMax =  oneWeekFromNow.toISOString();
         const eventsResult = await calendar.events.list({
             calendarId: 'primary',
             timeMin: now,
+            timeMax: timeMax,
             singleEvents: true,
             orderBy: 'startTime',
         });
+        //console.log(eventsResult.data.items);
+        
+        if (eventsResult.data && eventsResult.data.items) {
+            const events = eventsResult.data.items; // Extract events from the response
 
-        const events = eventsResult.data.items || []; // Retrieve events or default to an empty array
+            // Render the completed notes page with events
+            res.render("complete_note.ejs", {
+                isAuthenticated: !!req.session.user,
+                events: events,
+                CATEGORY_COLORS: CATEGORY_COLORS,
+            });
 
-        // Filter events with the specific identifier
-        const completedEvents = events.filter(event => event.description && event.description.includes(identifier));
-
-        // Render the completed notes page with events
-        res.render("completed_notes", { events: completedEvents,categoryColors: CATEGORY_COLORS  });
+        } else {
+            console.error("No items found in eventsResult:", eventsResult);
+            res.status(404).send("No events found.");
+        }
     } catch (error) {
         console.error("Error fetching events:", error);
         res.status(500).send("Error fetching events.");
     }
 });
-const CATEGORY_COLORS = {
-    Work: '#007bff', // Blue
-    Social: '#28a745', // Green
-    Personal: '#dc3545', // Red
-    // Add more categories and colors as needed
+const formatDateTime = (date, time) => {
+    const dt = new Date(`${date}T${time}`);
+    return dt.toISOString().slice(0, 19); // Format as YYYY-MM-DDTHH:mm:ss
 };
+
+const CATEGORY_COLORS = {
+    '1': '#D9EAD3', // Light green
+    '2': '#CFE2F3', // Light blue
+    '3': '#EAD1DC', // Pink
+    '4': '#F4CCCC', // Red
+    '5': '#FCE6B1', // Yellow
+    '6': '#EAD1DC', // Purple
+    '7': '#D9D9D9', // Gray
+    '8': '#E4B5C2', // Rose
+    '9': '#B6D7A8', // Soft green
+    '10': '#C9DAF8', // Light blue
+    '11': '#F6BCF2', // Lavender
+    '12': '#EAD1DC', // Coral
+    '13': '#D1C4E9', // Lilac
+    '14': '#D9EAD3', // Mint
+    '15': '#F1C6F7', // Purple
+    '16': '#FFBC91', // Salmon
+    '17': '#B6D7A8', // Green
+    '18': '#FFD8B3', // Peach
+    '19': '#FFF2A6', // Soft yellow
+    '20': '#FFABAB', // Light red
+    '21': '#FF5733', // Bright red
+    '22': '#35C29A'  // Teal
+};
+
 
 // Start server
 app.listen(port, () => {
