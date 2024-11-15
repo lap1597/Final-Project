@@ -8,6 +8,7 @@ CREATE TABLE emails (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
 CREATE TABLE notes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email_id INT,

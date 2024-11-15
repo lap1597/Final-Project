@@ -30,14 +30,14 @@
         <% events.forEach(event => { %>
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header" style="background-color: <%= event.colorId ? CATEGORY_COLORS[event.colorId] || '#007bff' : '#007bff' %>;">
+                    <div class="card-header" style="background-color: <%=CATEGORY_COLORS[event.colorId]|| '#007bff' %>;">
                         <%= event.summary %>
                     </div>
                     <div class="card-body">
                         <h5 class="card-title"><%= event.summary %></h5>
                         <p class="card-text">
-                            <strong>Start:</strong> <%= formatDateTime(event.start.dateTime || event.start.date)  %><br>
-                            <strong>End:</strong> <%= formatDateTime(event.end.dateTime || event.end.date)  %><br>
+                            <strong>Start:</strong> <%= formatDate(event.start.dateTime || event.start.date)  %><br>
+                            <strong>End:</strong> <%= formatDate(event.end.dateTime || event.end.date)  %><br>
                             <strong>Description:</strong> <%= event.description.replace("CreatedFromWebpage", "") %>
                         </p>
                     </div>
@@ -50,7 +50,7 @@
         </div>
     <% } %>
 </div>
-<!-- <script>
+<script>
    function formatDate(dateTime) {
     const options = { 
         year: 'numeric', 
@@ -63,9 +63,9 @@
     const date = new Date(dateTime);
     return date.toLocaleString('en-US', options).replace(',', ''); // Format to local string and remove the comma
 }
-</script> -->
+</script>
 <%- include("content/footer.ejs") %>
-<%
+<!-- <%
 // Server-side function to format the date and time
 function formatDate(dateTime) {
     const options = { 
@@ -78,4 +78,4 @@ function formatDate(dateTime) {
     };
     const date = new Date(dateTime);
     return date.toLocaleString('en-US', options).replace(',', ''); // Format to local string and remove the comma
-} %>
+} %> -->

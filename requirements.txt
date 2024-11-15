@@ -1,0 +1,10 @@
+express
+nodemailer
+body-parser
+dotenv
+node-fetch
+googleapis
+express-session
+google-auth-library
+ejs
+

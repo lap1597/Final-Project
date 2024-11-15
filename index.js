@@ -166,7 +166,8 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
                dateTime: formatDateTime(end, endTime), // Use formatted end time
                 timeZone: 'America/Los_Angeles',
             },
-            colorId: CATEGORY_COLORS[category]
+            // colorId: CATEGORY_COLORS[category]
+           // colorId: CATEGORY_COLORS[category]
         };
 
         try {
