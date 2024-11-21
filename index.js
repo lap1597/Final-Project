@@ -39,6 +39,14 @@ const isAuthenticated = (req, res, next) => {
         res.redirect("/"); // Redirect to login page if not authenticated
     }
 };
+const CATEGORY_COLORS = {
+    'class': '1',   // Light blue
+    'study': '2',   // Light green
+    'meeting': '3', // Purple
+    'project': '4', // Red
+    'break': '5',   // Yellow
+    'personal': '6' // Orange
+};
 
 
 app.get("/", (req, res) => {
@@ -53,7 +61,12 @@ app.get("/contact", (req, res) => {
     res.render("contact.ejs", { isAuthenticated: !!req.session.user });
 });
 app.get("/note", isAuthenticated, (req, res) => {
+
     res.render("note.ejs", { isAuthenticated: !!req.session.user });
+});
+app.get("/quit", (req, res) => {
+ 
+    res.render("index.ejs", { isAuthenticated: !!req.session.user });
 });
 
 
@@ -106,6 +119,7 @@ app.get("/auth/google/callback", async (req, res) => {
 
         const userInfo = await userInfoResponse.json();
         if (userInfo.email_verified) {
+
             req.session.user = userInfo; 
             res.redirect("/note");
         } else {
@@ -119,7 +133,7 @@ app.get("/auth/google/callback", async (req, res) => {
 
 // Send email route
 app.post("/send-email", async (req, res) => {
-    const { name, email, message } = req.body;
+    const { name, message } = req.body;
 
     let transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -132,14 +146,19 @@ app.post("/send-email", async (req, res) => {
     let mailOptions = {
         from: process.env.CUSTOME_EMAIL,
         to: process.env.RECEIVER_EMAIL,
-        subject: `New message from User`,
+        subject: `New message from ${name}`,
         text: message
     };
 
     try {
         await transporter.sendMail(mailOptions);
-        res.send("Email has been sent successfully!");
+        return res.redirect("/contact");
+     //   res.send("Email has been sent successfully!");
+        res.redirect()
     } catch (error) {
+        if (!res.headersSent) {
+            return res.status(500).send("There was an error sending the email. Please try again later.");
+        }
         console.error("Error sending email:", error);
         res.status(500).send("There was an error sending the email. Please try again later.");
     }
@@ -147,11 +166,47 @@ app.post("/send-email", async (req, res) => {
 
 // Create event route
 app.post("/create_event", isAuthenticated, async (req, res) => {
-    const { description, publishToCalendar, summary, start, end, startTime, endTime, category } = req.body;
-
+    const { description, publishToCalendar, summary, start, end, startTime, endTime, category ,useAiSuggestion} = req.body;
+        console.log(useAiSuggestion);
+        console.log(publishToCalendar);
+        console.log(req.body); 
     if (publishToCalendar) {
         const accessToken = req.session.tokenData.access_token;
+        const oAuth2Client = new google.auth.OAuth2();
+        oAuth2Client.setCredentials({ access_token: accessToken });
 
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        console.log(useAiSuggestion);
+        if (useAiSuggestion) {
+            const accessToken = req.session.tokenData.access_token;
+
+            const startDateTime = formatDateTime(start, startTime);
+            const endDateTime = formatDateTime(end, endTime);
+
+            const eventsResult = await calendar.events.list({
+                calendarId: 'primary',
+                timeMin: startDateTime,
+                timeMax: endDateTime,
+                singleEvents: true,
+                orderBy: 'startTime',
+            });
+
+            const events = eventsResult.data.items || [];
+
+            const openaiResponse = await generateChatResponse(events, summary, category, description, startDateTime, endDateTime);
+
+            console.log(`AI response: ${openaiResponse}`);
+            const suggestedTime = parseSuggestedTime(openaiResponse);
+            const suggestedStartTime = suggestedTime.startTime;
+            const suggestedEndTime = suggestedTime.endTime;
+
+            // Flash AI suggestion
+            req.flash('info', `Suggested time by AI: Start: ${suggestedStartTime}, End: ${suggestedEndTime}`);
+
+            // Use suggested time or fallback to user input
+            startTime = suggestedStartTime || startTime;
+            endTime = suggestedEndTime || endTime;
+        }
         // Create event object
         const event = {
             summary,
@@ -166,23 +221,21 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
                dateTime: formatDateTime(end, endTime), // Use formatted end time
                 timeZone: 'America/Los_Angeles',
             },
-            // colorId: CATEGORY_COLORS[category]
-           // colorId: CATEGORY_COLORS[category]
+            colorId: CATEGORY_COLORS[category] || 'default',
+           
         };
 
         try {
-            const oAuth2Client = new google.auth.OAuth2();
-            oAuth2Client.setCredentials({ access_token: accessToken });
-
-            const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+        
             const eventResponse = await calendar.events.insert({
                 calendarId: 'primary',
                 resource: event,
+                colorID: category
             });
             console.log("Event created:", eventResponse.data);
-            // Redirect to the completed notes page after successful event creation
+          
             if (eventResponse.status === 200 || eventResponse.status === 201) {
-                // Redirect to the completed notes page after successful event creation
+            
                 res.redirect("/note");
             } else {
                 console.error("Failed to create event:", eventResponse);
@@ -193,7 +246,7 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
             res.status(500).send("Error creating calendar event.");
         }
     } else {
-        res.redirect("/completed_notes"); // Redirect if not publishing to calendar
+        res.redirect("/completed_notes");
     }
 });
 
@@ -227,7 +280,7 @@ app.get("/completed_notes", isAuthenticated, async (req, res) => {
             res.render("complete_note.ejs", {
                 isAuthenticated: !!req.session.user,
                 events: events,
-                CATEGORY_COLORS: CATEGORY_COLORS,
+               
             });
 
         } else {
@@ -243,31 +296,96 @@ const formatDateTime = (date, time) => {
     const dt = new Date(`${date}T${time}`);
     return dt.toISOString().slice(0, 19); // Format as YYYY-MM-DDTHH:mm:ss
 };
+app.delete('/delete_event/:id', async (req, res) => {
+    const eventId = req.params.id;
+    const accessToken = req.session.tokenData.access_token;
 
-const CATEGORY_COLORS = {
-    '1': '#D9EAD3', // Light green
-    '2': '#CFE2F3', // Light blue
-    '3': '#EAD1DC', // Pink
-    '4': '#F4CCCC', // Red
-    '5': '#FCE6B1', // Yellow
-    '6': '#EAD1DC', // Purple
-    '7': '#D9D9D9', // Gray
-    '8': '#E4B5C2', // Rose
-    '9': '#B6D7A8', // Soft green
-    '10': '#C9DAF8', // Light blue
-    '11': '#F6BCF2', // Lavender
-    '12': '#EAD1DC', // Coral
-    '13': '#D1C4E9', // Lilac
-    '14': '#D9EAD3', // Mint
-    '15': '#F1C6F7', // Purple
-    '16': '#FFBC91', // Salmon
-    '17': '#B6D7A8', // Green
-    '18': '#FFD8B3', // Peach
-    '19': '#FFF2A6', // Soft yellow
-    '20': '#FFABAB', // Light red
-    '21': '#FF5733', // Bright red
-    '22': '#35C29A'  // Teal
-};
+    try {
+        // Initialize OAuth2 client
+        const oAuth2Client = new google.auth.OAuth2();
+        oAuth2Client.setCredentials({ access_token: accessToken });
+
+        // Create calendar client
+        const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
+
+        // Delete event from Google Calendar
+        await calendar.events.delete({
+            calendarId: 'primary',
+            eventId: eventId,
+        });
+
+        res.status(200).send('Event deleted successfully');
+    } catch (error) {
+        console.error('Error deleting event:', error);
+        res.status(500).send('Failed to delete the event');
+    }
+});
+async function generateChatResponse(events, summary, category, description, startDate, endDate) {
+    const eventsSummary = events.map(event => {
+    const startTime = event.start.dateTime || event.start.date;
+    const endTime = event.end.dateTime || event.end.date;
+        return `${startTime} to ${endTime}: ${event.summary}`;
+    }).join("\n");
+
+    const prompt = `
+    You are an intelligent assistant. Here are the existing events in the user's calendar for the date ${startDate}:
+    ${eventsSummary}
+
+    The user wants to add a new event with the following details:
+    Title: ${summary}
+    Description: ${description}
+    Category: ${category}
+    Date: ${startDate} to ${endDate}
+
+    The event should be scheduled during regular hours (8 AM to 10 PM) and should be realistic for a task like '${summary}', which usually takes about 1-2 hours.
+    Ensure that the new event does not overlap with any existing events in the user's calendar.
+    Please suggest the optimal start and end time for this new event based on the user's current schedule and the category of the event.
+    Return the times in the format: 'Start Time: HH:MM AM/PM', followed by a new line with 'End Time: HH:MM AM/PM'.
+    `;
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': process.env.OPEN_AI_API,
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [
+                    { "role": "system", "content": "You are an intelligent assistant." },
+                    { "role": "user", "content": prompt }
+                ]
+            }),
+        });
+
+        const data = await response.json();
+        console.log("OpenAI response:", data);
+
+        return data.choices[0].message.content.trim();
+    } catch (error) {
+        console.error("Error calling OpenAI API:", error);
+        return "Start Time: 00:00\nEnd Time: 23:59";  // Default fallback times
+    }
+}
+function parseSuggestedTime(aiResponse) {
+    try {
+        const lines = aiResponse.strip().split('\n');
+        const startTimeLine = lines.find(line => line.includes("Start Time"));
+        const endTimeLine = lines.find(line => line.includes("End Time"));
+
+        const startTimeStr = startTimeLine.split(": ")[1].trim().replace('**', '');
+        const endTimeStr = endTimeLine.split(": ")[1].trim().replace('**', '');
+
+        const startTime = new Date(`1970-01-01T${startTimeStr}Z`).toISOString().slice(11, 19);
+        const endTime = new Date(`1970-01-01T${endTimeStr}Z`).toISOString().slice(11, 19);
+
+        return { startTime, endTime };
+    } catch (error) {
+        console.error("Error parsing suggested time:", error);
+        return { startTime: '00:00:00', endTime: '23:59:59' };  // Default fallback times
+    }
+}
 
 
 // Start server

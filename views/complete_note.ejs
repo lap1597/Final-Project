@@ -15,12 +15,26 @@
     .card-header {
         color: white;
     }
+    .color-default {
+        background-color: #f66d3b; /* Neutral background */
+    }
     .no-events {
         text-align: center; /* Center the message */
         font-size: 1.2rem; /* Slightly larger text for emphasis */
         margin-top: 2rem; /* Add some space above */
         color: #555; /* Dimmed color for a softer look */
     }
+    .btn-danger {
+        width: auto;
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    .btn-danger:hover {
+        background-color: #c82333;
+        border-color: #bd2130;
+        transform: scale(1.3);
+    }
+
 </style>
 
 <h1 class="mb-4">Completed Notes</h1>
@@ -30,7 +44,7 @@
         <% events.forEach(event => { %>
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header" style="background-color: <%=CATEGORY_COLORS[event.colorId]|| '#007bff' %>;">
+                    <div class="card-header" >
                         <%= event.summary %>
                     </div>
                     <div class="card-body">
@@ -40,6 +54,8 @@
                             <strong>End:</strong> <%= formatDate(event.end.dateTime || event.end.date)  %><br>
                             <strong>Description:</strong> <%= event.description.replace("CreatedFromWebpage", "") %>
                         </p>
+                        <button class="btn btn-danger" onclick="deleteEvent('<%= event.id %>')">Delete</button>
+
                     </div>
                 </div>
             </div>
@@ -63,6 +79,25 @@
     const date = new Date(dateTime);
     return date.toLocaleString('en-US', options).replace(',', ''); // Format to local string and remove the comma
 }
+// This will handle the delete action when the delete button is clicked
+async function deleteEvent(eventId) {
+    try {
+        const response = await fetch(`/delete_event/${eventId}`, {
+            method: 'DELETE',
+        });
+
+        if (response.ok) {
+            console.log("Event deleted successfully");
+            // Optionally, reload the page or remove the event from the UI
+            window.location.reload();
+        } else {
+            console.error("Failed to delete the event");
+        }
+    } catch (error) {
+        console.error("Error deleting event:", error);
+    }
+}
+
 </script>
 <%- include("content/footer.ejs") %>
 <!-- <%

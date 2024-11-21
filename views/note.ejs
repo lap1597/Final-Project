@@ -5,8 +5,9 @@
     <div>
         <textarea id="noteInput" name="description" placeholder="Write your note here..." required></textarea>
         <br>
-        <input type="checkbox" id="publishToCalendar" name="publishToCalendar">
+        
         <label for="publishToCalendar">Publish to Google Calendar</label>
+        <input type="checkbox" id="publishToCalendar" name="publishToCalendar" value="true">
     </div>
     <div id="calendarInputs" style="display: none;">
         <label for="summary">Event Title:</label>
@@ -38,24 +39,29 @@
             <option value="personal">Personal Task</option>
         </select><br>
 
+        <input type="checkbox" id="useAiSuggestion" name="useAiSuggestion" value="true"><br>
         <label for="useAiSuggestion">Use AI to Suggest Time:</label>
-        <input type="checkbox" id="useAiSuggestion" name="useAiSuggestion"><br>
+        
     </div>
+   
     <button type="submit">Add Note</button>
 </form>
 
-<ul id="notesList"></ul>
-
 <script>
     document.getElementById('publishToCalendar').addEventListener('change', function() {
+        console.log('publishToCalendar changed');
         var calendarInputs = document.getElementById('calendarInputs');
         calendarInputs.style.display = this.checked ? 'block' : 'none';
     });
 
     document.getElementById('useAiSuggestion').addEventListener('change', function() {
+        console.log('useAiSuggestion changed');
         var timeInputs = document.getElementById('timeInputs');
         timeInputs.style.display = this.checked ? 'none' : 'block';
     });
 </script>
+
+
+
 
 <%- include("content/footer.ejs") %>

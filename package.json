@@ -21,10 +21,13 @@
     "express-session": "^1.18.1",
     "google-auth-library": "^9.14.2",
     "googleapis": "^144.0.0",
+    "install": "^0.13.0",
+    "method-override": "^3.0.0",
     "mysql2": "^3.11.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.15",
     "nodemon": "^3.1.7",
+    "npm": "^10.9.0",
     "openai": "^4.68.1",
     "route": "^0.2.5"
   }
