@@ -6,7 +6,7 @@ import fetch from "node-fetch";
 import { OAuth2Client } from "google-auth-library";
 import { google } from 'googleapis';
 import session from 'express-session';  // Import express-session
-
+import mysql from "mysql2/promise";
 dotenv.config();
 const app = express();
 const port = 3000;
@@ -22,6 +22,17 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.set('view engine', 'ejs');
 app.use(express.static("public"));
+
+// Create connection pool
+const myData = mysql.createPool({
+    host: process.env.DB_HOST,       // Your database host
+    user: process.env.SQL_USERNAME, // Your database username
+    password: process.env.SQL_PASS, // Your database password
+    database: process.env.SQL_NAME, // Your database name
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+});
 
 // Google OAuth setup
 const googleClientId = process.env.CLIENT_ID;
@@ -60,10 +71,28 @@ app.get("/about", (req, res) => {
 app.get("/contact", (req, res) => {
     res.render("contact.ejs", { isAuthenticated: !!req.session.user });
 });
-app.get("/note", isAuthenticated, (req, res) => {
+// app.get("/note", isAuthenticated, (req, res) => {
 
-    res.render("note.ejs", { isAuthenticated: !!req.session.user });
+//     res.render("note.ejs", { isAuthenticated: !!req.session.user });
+// });
+app.get("/notes", isAuthenticated, async (req, res) => {
+    const userEmail = req.session.user.email;
+
+    const connection = await myData.getConnection();
+    try {
+        const [notes] = await connection.query(
+            `SELECT * FROM notes WHERE user_email = ? ORDER BY created_at DESC`,
+            [userEmail]
+        );
+        res.render("notes.ejs", { notes, isAuthenticated: !!req.session.user });
+    } catch (error) {
+        console.error("Error retrieving notes:", error);
+        res.status(500).send("Error retrieving notes.");
+    } finally {
+        connection.release();
+    }
 });
+
 app.get("/quit", (req, res) => {
  
     res.render("index.ejs", { isAuthenticated: !!req.session.user });
@@ -116,11 +145,25 @@ app.get("/auth/google/callback", async (req, res) => {
                 'Authorization': `Bearer ${accessToken}`
             }
         });
+   
 
         const userInfo = await userInfoResponse.json();
         if (userInfo.email_verified) {
+           
 
             req.session.user = userInfo; 
+            const connection = await myData.getConnection();
+            try {
+                const [result] = await connection.query(
+                    `INSERT INTO users (email, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = ?`,
+                    [userInfo.email, userInfo.name, userInfo.name]
+                );
+                console.log("User added/updated:", result);
+            } catch (error) {
+                console.error("Error saving user to database:", error);
+            } finally {
+                connection.release();
+            }
             res.redirect("/note");
         } else {
             res.status(401).send("Email not verified");
@@ -167,9 +210,9 @@ app.post("/send-email", async (req, res) => {
 // Create event route
 app.post("/create_event", isAuthenticated, async (req, res) => {
     const { description, publishToCalendar, summary, start, end, startTime, endTime, category ,useAiSuggestion} = req.body;
-        console.log(useAiSuggestion);
-        console.log(publishToCalendar);
-        console.log(req.body); 
+        // console.log(useAiSuggestion);
+        // console.log(publishToCalendar);
+        // console.log(req.body); 
     if (publishToCalendar) {
         const accessToken = req.session.tokenData.access_token;
         const oAuth2Client = new google.auth.OAuth2();
@@ -246,8 +289,28 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
             res.status(500).send("Error creating calendar event.");
         }
     } else {
-        res.redirect("/completed_notes");
+ 
+
+        const userEmail = req.session.user.email;
+        const title ="Quick Note"
+        const content = summary;
+        const connection = await myData.getConnection();
+        try {
+            const [result] = await connection.query(
+                `INSERT INTO notes (user_email, title, content) VALUES (?, ?, ?)`,
+                [userEmail, title, content]
+            );
+            console.log("Note created in database:", result);
+            res.redirect("/notes");
+        } catch (error) {
+            console.error("Error creating note:", error);
+            res.status(500).send("Error creating note.");
+        } finally {
+            connection.release();
+        }
     }
+
+    
 });
 
 
@@ -264,6 +327,13 @@ app.get("/completed_notes", isAuthenticated, async (req, res) => {
         const oneWeekFromNow = new Date(); // Create a new date object
         oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 2); // Add 7 days
         const timeMax =  oneWeekFromNow.toISOString();
+        //Get the regular note
+
+        
+        
+       // const eventsResult // append the regular note here
+
+
         const eventsResult = await calendar.events.list({
             calendarId: 'primary',
             timeMin: now,
@@ -367,6 +437,7 @@ async function generateChatResponse(events, summary, category, description, star
         console.error("Error calling OpenAI API:", error);
         return "Start Time: 00:00\nEnd Time: 23:59";  // Default fallback times
     }
+
 }
 function parseSuggestedTime(aiResponse) {
     try {
