@@ -7,6 +7,9 @@ import { OAuth2Client } from "google-auth-library";
 import { google } from 'googleapis';
 import session from 'express-session';  // Import express-session
 import mysql from "mysql2/promise";
+
+import OpenAI from 'openai';
+
 dotenv.config();
 const app = express();
 const port = 3000;
@@ -23,6 +26,7 @@ app.use(bodyParser.json());
 app.set('view engine', 'ejs');
 app.use(express.static("public"));
 
+
 // Create connection pool
 const myData = mysql.createPool({
     host: process.env.DB_HOST,       // Your database host
@@ -33,6 +37,17 @@ const myData = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0,
 });
+// const openAiConfig = new Configuration({
+//     apiKey: process.env.OPEN_AI_API,
+// });
+// const openai = new OpenAIApi(openAiConfig);
+
+// const openai = new OpenAIApi({
+//     apiKey: process.env.OPENAI_API_KEY,
+//   });
+const openai = new OpenAI({
+    apiKey: process.env.OPEN_AI_API // This is also the default, can be omitted
+  });
 
 // Google OAuth setup
 const googleClientId = process.env.CLIENT_ID;
@@ -71,27 +86,11 @@ app.get("/about", (req, res) => {
 app.get("/contact", (req, res) => {
     res.render("contact.ejs", { isAuthenticated: !!req.session.user });
 });
-// app.get("/note", isAuthenticated, (req, res) => {
+app.get("/note", isAuthenticated, (req, res) => {
 
-//     res.render("note.ejs", { isAuthenticated: !!req.session.user });
-// });
-app.get("/notes", isAuthenticated, async (req, res) => {
-    const userEmail = req.session.user.email;
-
-    const connection = await myData.getConnection();
-    try {
-        const [notes] = await connection.query(
-            `SELECT * FROM notes WHERE user_email = ? ORDER BY created_at DESC`,
-            [userEmail]
-        );
-        res.render("notes.ejs", { notes, isAuthenticated: !!req.session.user });
-    } catch (error) {
-        console.error("Error retrieving notes:", error);
-        res.status(500).send("Error retrieving notes.");
-    } finally {
-        connection.release();
-    }
+    res.render("note.ejs", { isAuthenticated: !!req.session.user });
 });
+
 
 app.get("/quit", (req, res) => {
  
@@ -152,18 +151,7 @@ app.get("/auth/google/callback", async (req, res) => {
            
 
             req.session.user = userInfo; 
-            const connection = await myData.getConnection();
-            try {
-                const [result] = await connection.query(
-                    `INSERT INTO users (email, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = ?`,
-                    [userInfo.email, userInfo.name, userInfo.name]
-                );
-                console.log("User added/updated:", result);
-            } catch (error) {
-                console.error("Error saving user to database:", error);
-            } finally {
-                connection.release();
-            }
+          
             res.redirect("/note");
         } else {
             res.status(401).send("Email not verified");
@@ -209,43 +197,42 @@ app.post("/send-email", async (req, res) => {
 
 // Create event route
 app.post("/create_event", isAuthenticated, async (req, res) => {
-    const { description, publishToCalendar, summary, start, end, startTime, endTime, category ,useAiSuggestion} = req.body;
-        // console.log(useAiSuggestion);
-        // console.log(publishToCalendar);
-        // console.log(req.body); 
+   
+    let { description, publishToCalendar, summary, start, end, startTime, endTime, category ,useAiSuggestion} = req.body;
+
     if (publishToCalendar) {
+
+
         const accessToken = req.session.tokenData.access_token;
         const oAuth2Client = new google.auth.OAuth2();
         oAuth2Client.setCredentials({ access_token: accessToken });
 
         const calendar = google.calendar({ version: 'v3', auth: oAuth2Client });
-        console.log(useAiSuggestion);
+
+    
         if (useAiSuggestion) {
-            const accessToken = req.session.tokenData.access_token;
-
-            const startDateTime = formatDateTime(start, startTime);
-            const endDateTime = formatDateTime(end, endTime);
-
-            const eventsResult = await calendar.events.list({
-                calendarId: 'primary',
-                timeMin: startDateTime,
-                timeMax: endDateTime,
-                singleEvents: true,
-                orderBy: 'startTime',
-            });
-
+            const startT = new Date(`${start}T00:00:00Z`).toISOString(); // Z ensures UTC
+            const endT = new Date(`${end}T23:59:59Z`).toISOString(); // Adjust to include entire end day
+            
+                const eventsResult = await calendar.events.list({
+                    calendarId: 'primary',
+                    timeMin: startT,
+                    timeMax: endT,
+                    singleEvents: true,
+                    orderBy: 'startTime',
+                     timeZone: 'America/Los_Angeles',
+                });
+           console.log("RESULT"+eventsResult);
             const events = eventsResult.data.items || [];
 
-            const openaiResponse = await generateChatResponse(events, summary, category, description, startDateTime, endDateTime);
+            const openaiResponse = await generateChatResponse(events, summary, category, description, start, end);
 
             console.log(`AI response: ${openaiResponse}`);
             const suggestedTime = parseSuggestedTime(openaiResponse);
             const suggestedStartTime = suggestedTime.startTime;
             const suggestedEndTime = suggestedTime.endTime;
 
-            // Flash AI suggestion
-            req.flash('info', `Suggested time by AI: Start: ${suggestedStartTime}, End: ${suggestedEndTime}`);
-
+        
             // Use suggested time or fallback to user input
             startTime = suggestedStartTime || startTime;
             endTime = suggestedEndTime || endTime;
@@ -255,12 +242,12 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
             summary,
             description,
             start: {
-              //  dateTime: new Date(`${start}T${startTime}`).toISOString(),
+      
               dateTime: formatDateTime(start, startTime),
                 timeZone: 'America/Los_Angeles', // Adjust time zone as needed
             },
             end: {
-               // dateTime: new Date(`${end}T${endTime}`).toISOString(),
+             
                dateTime: formatDateTime(end, endTime), // Use formatted end time
                 timeZone: 'America/Los_Angeles',
             },
@@ -289,28 +276,9 @@ app.post("/create_event", isAuthenticated, async (req, res) => {
             res.status(500).send("Error creating calendar event.");
         }
     } else {
- 
 
-        const userEmail = req.session.user.email;
-        const title ="Quick Note"
-        const content = summary;
-        const connection = await myData.getConnection();
-        try {
-            const [result] = await connection.query(
-                `INSERT INTO notes (user_email, title, content) VALUES (?, ?, ?)`,
-                [userEmail, title, content]
-            );
-            console.log("Note created in database:", result);
-            res.redirect("/notes");
-        } catch (error) {
-            console.error("Error creating note:", error);
-            res.status(500).send("Error creating note.");
-        } finally {
-            connection.release();
-        }
+            //add regusnote
     }
-
-    
 });
 
 
@@ -390,55 +358,57 @@ app.delete('/delete_event/:id', async (req, res) => {
         res.status(500).send('Failed to delete the event');
     }
 });
-async function generateChatResponse(events, summary, category, description, startDate, endDate) {
-    const eventsSummary = events.map(event => {
-    const startTime = event.start.dateTime || event.start.date;
-    const endTime = event.end.dateTime || event.end.date;
-        return `${startTime} to ${endTime}: ${event.summary}`;
-    }).join("\n");
 
-    const prompt = `
-    You are an intelligent assistant. Here are the existing events in the user's calendar for the date ${startDate}:
+async function generateChatResponse(events, summary, category, startDate, endDate) {
+   
+
+// Initialize OpenAI API with the API key from the environment variable
+
+    // Prepare event summaries
+    const eventsSummary = events
+        .map(event => `${event.start.dateTime} to ${event.end.dateTime}: ${event.summary}`)
+        .join("\n");
+
+    // Create the prompt
+  //  console.log(eventsSummary);
+    const promptT = `
+    You are an intelligent assistant. Here are the existing events in the user's calendar:
     ${eventsSummary}
-
     The user wants to add a new event with the following details:
-    Title: ${summary}
-    Description: ${description}
+    Summary: ${summary}
     Category: ${category}
     Date: ${startDate} to ${endDate}
 
     The event should be scheduled during regular hours (8 AM to 10 PM) and should be realistic for a task like '${summary}', which usually takes about 1-2 hours.
-    Ensure that the new event does not overlap with any existing events in the user's calendar.
     Please suggest the optimal start and end time for this new event based on the user's current schedule and the category of the event.
-    Return the times in the format: 'Start Time: HH:MM AM/PM', followed by a new line with 'End Time: HH:MM AM/PM'.
+    Return the format in the format: 'Start Time: 00:00', and then a new line with 'End Time: 00:00', with the zeroes seen in the example acting as placeholders.
+    I only want the output specified to be printed, and nothing else.
     `;
 
+   
+
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': process.env.OPEN_AI_API,
-            },
-            body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [
-                    { "role": "system", "content": "You are an intelligent assistant." },
-                    { "role": "user", "content": prompt }
-                ]
-            }),
+ 
+        const response =  await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                { "role": "system", "content": "You are an intelligent assistant." },
+                { "role": "user", "content": promptT },
+            ],
+     
         });
-
-        const data = await response.json();
-        console.log("OpenAI response:", data);
-
-        return data.choices[0].message.content.trim();
+       
+    //    console.log(response);
+      //  console.log("OpenAI response:", response.data);
+       console.log("OpenAI response:",  response.choices[0].message);
+       // console.log("OpenAI response:",  response.data.choices[0].message.content);
+       return response.choices[0].message.trim();
     } catch (error) {
-        console.error("Error calling OpenAI API:", error);
-        return "Start Time: 00:00\nEnd Time: 23:59";  // Default fallback times
+        console.error("Error calling OpenAI API:", error.message);
+        return "Start Time: 00:00\nEnd Time: 23:59"; // Default fallback times
     }
-
 }
+
 function parseSuggestedTime(aiResponse) {
     try {
         const lines = aiResponse.strip().split('\n');

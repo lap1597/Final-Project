@@ -38,13 +38,17 @@
             <option value="break">Break</option>
             <option value="personal">Personal Task</option>
         </select><br>
-
-        <input type="checkbox" id="useAiSuggestion" name="useAiSuggestion" value="true"><br>
-        <label for="useAiSuggestion">Use AI to Suggest Time:</label>
+        <div>
         
+            <label for="useAiSuggestion">Use AI to Suggest Time:</label>
+            <input type="checkbox" id="useAiSuggestion" name="useAiSuggestion" value="true"><br>
+            
+        </div>
     </div>
+    <div>
    
     <button type="submit">Add Note</button>
+    </div>
 </form>
 
 <script>
@@ -54,10 +58,28 @@
         calendarInputs.style.display = this.checked ? 'block' : 'none';
     });
 
+    // document.getElementById('useAiSuggestion').addEventListener('change', function() {
+    //     console.log('useAiSuggestion changed');
+    //     var timeInputs = document.getElementById('timeInputs');
+    //     timeInputs.style.display = this.checked ? 'none' : 'block';
+    // });
     document.getElementById('useAiSuggestion').addEventListener('change', function() {
         console.log('useAiSuggestion changed');
         var timeInputs = document.getElementById('timeInputs');
-        timeInputs.style.display = this.checked ? 'none' : 'block';
+        var startTime = document.getElementById('startTime');
+        var endTime = document.getElementById('endTime');
+
+        if (this.checked) {
+            timeInputs.style.display = 'none';
+            // Remove required attributes when AI suggestion is used
+            startTime.removeAttribute('required');
+            endTime.removeAttribute('required');
+        } else {
+            timeInputs.style.display = 'block';
+            // Add required attributes back when AI suggestion is not used
+            startTime.setAttribute('required', 'required');
+            endTime.setAttribute('required', 'required');
+        }
     });
 </script>
 
